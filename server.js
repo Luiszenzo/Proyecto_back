@@ -438,6 +438,56 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Actualizar ubicación de repartidor
+app.post('/api/deliveries/:id/location', async (req, res) => {
+  console.log('📍 Actualizando ubicación de repartidor...');
+  try {
+    const { id } = req.params;
+    const { latitude, longitude } = req.body;
+    
+    if (!latitude || !longitude) {
+      return res.status(400).json({ 
+        error: 'Faltan coordenadas: latitude, longitude' 
+      });
+    }
+    
+    // Corregido: Guardar latitude y longitude como columnas separadas
+    const { data, error } = await supabase
+      .from('usuarios')
+      .update({ 
+        latitude,
+        longitude,
+        last_update: new Date().toISOString()
+      })
+      .eq('id', id)
+      .eq('role', 'delivery')
+      .select();
+    
+    if (error) {
+      console.log('❌ Error al actualizar ubicación:', error.message);
+      return res.status(400).json({ error: error.message });
+    }
+    
+    if (data.length === 0) {
+      console.log('❌ No se encontró repartidor con ID:', id);
+      return res.status(404).json({ error: 'Repartidor no encontrado' });
+    }
+    
+    console.log(`✅ Ubicación actualizada para repartidor: ${data[0].name}`);
+    console.log(`📍 Nueva ubicación: ${latitude}, ${longitude}`);
+    res.json({
+      success: true,
+      message: 'Ubicación actualizada correctamente',
+      user: data[0]
+    });
+  } catch (err) {
+    console.log('❌ Error interno:', err.message);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+
+
 // Mantener solo esta ruta (líneas 441-465) que usa 'usuarios'
 app.get('/api/deliveries', async (req, res) => {
   try {
@@ -458,6 +508,54 @@ app.get('/api/deliveries', async (req, res) => {
     
     console.log('✅ Repartidores obtenidos:', usuariosSinPassword.length);
     res.json(usuariosSinPassword);
+    
+  } catch (error) {
+    console.error('💥 Error:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// Obtener todos los repartidores con su ubicación actual
+app.get('/api/deliveries/map', async (req, res) => {
+  try {
+    console.log('🗺️ Obteniendo repartidores con ubicación para el mapa...');
+    
+    const { data: repartidores, error } = await supabase
+      .from('usuarios')
+      .select('id, name, phone, email, status, latitude, longitude, last_update')
+      .eq('role', 'delivery');
+
+    if (error) {
+      console.error('❌ Error obteniendo repartidores:', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    // Filtrar solo los repartidores que tienen ubicación
+    const repartidoresConUbicacion = repartidores.filter(
+      rep => rep.latitude && rep.longitude
+    );
+    
+    console.log(`✅ Repartidores con ubicación: ${repartidoresConUbicacion.length} de ${repartidores.length}`);
+    
+    // Obtener también los paquetes asignados a cada repartidor
+    const { data: paquetes, error: paquetesError } = await supabase
+      .from('packages')
+      .select('*')
+      .in('delivery_person_id', repartidores.map(r => r.id))
+      .eq('status', 'in_transit');
+      
+    if (paquetesError) {
+      console.error('❌ Error obteniendo paquetes:', paquetesError);
+    } else {
+      console.log(`📦 Paquetes en tránsito: ${paquetes.length}`);
+      
+      // Agregar paquetes a cada repartidor
+      repartidoresConUbicacion.forEach(rep => {
+        rep.packages = paquetes.filter(pkg => pkg.delivery_person_id === rep.id);
+      });
+    }
+    
+    res.json(repartidoresConUbicacion);
     
   } catch (error) {
     console.error('💥 Error:', error);
