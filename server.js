@@ -365,9 +365,10 @@ app.get('/api/locations', async (req, res) => {
 
 // ==================== INICIAR SERVIDOR ====================
 
-app.listen(port, async () => {
+// In your server.js file, modify the app.listen line:
+app.listen(port, '0.0.0.0', async () => {
   console.log('🎉 ================================');
-  console.log(`🚀 Servidor ejecutándose en http://localhost:${port}`);
+  console.log(`🚀 Servidor ejecutándose en http://0.0.0.0:${port}`);
   console.log('🎉 ================================');
   console.log('📋 Endpoints disponibles:');
   console.log('   🏥 GET  /api/health');
