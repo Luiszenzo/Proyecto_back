@@ -1,9 +1,5 @@
-## 2. Create a fly.toml file
-
-Create this file in your project root:
-```toml
 app = "proyecto-back"
-primary_region = "mia"
+primary_region = "gdl"
 
 [http_service]
   internal_port = 3000
@@ -15,4 +11,3 @@ primary_region = "mia"
 
 [env]
   PORT = "3000"
-```
